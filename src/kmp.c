@@ -32,7 +32,7 @@ ReadResult readFile(char *path) {
     return rr;
 }
 
-int strfind(char *src, size_t slen, char *pattern, size_t plen) {
+int strfind(char *text, size_t tlen, char *pattern, size_t plen) {
     // Knuth–Morris–Pratt string search algorithm
 
 
@@ -51,16 +51,13 @@ int strfind(char *src, size_t slen, char *pattern, size_t plen) {
         }
         ++x;
     }
-    // for (int i = 0; i < (int) plen; ++i) {
-    //     printf("[%d]: %d\n", i, fail[i]);
-    // }
 
 
     // actual search algorithm
     int i = 0;
     int q = 0;
-    while (i < (int) slen) {
-        if (src[i] == pattern[q]) {
+    while (i < (int) tlen) {
+        if (text[i] == pattern[q]) {
             ++i;
             ++q;
             if (q == (int) plen) {

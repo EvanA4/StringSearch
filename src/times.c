@@ -27,55 +27,44 @@ typedef struct RandSStr {
 
 int bmh(char *text, size_t tlen, char *pattern, size_t plen) {
     // Boyer–Moore–Horspool string search algorithm
-    int bchar[127];
-    for (int i = 0; i < 127; ++i) {
-        bchar[i] = plen;
-    }
-    for (int i = 0; i < (int) plen-1; ++i) {
-        bchar[(int) pattern[i]] = plen-i-1;
-    }
-    for (int i = 0; i < (int) (tlen-plen+1); ++i) {
+    int bchar[256];
+    for (int i = 0; i < 256; ++i) bchar[i] = -1;
+    for (int i = 0; i < (int) plen-1; ++i) bchar[(int) pattern[i]] = i;
+    int s = 0;
+    while (s <= (int) (tlen-plen)) {
+        // start matching from back
         int jump = 0;
         for (int j = plen-1; j >= 0; --j) {
-            char srcc = text[i+j];
-            if (srcc != pattern[j]) {
-                jump = bchar[(int) srcc];
+            char textc = text[s+j];
+            if (textc != pattern[j]) {
+                jump = j - bchar[(int) textc] > 1 ? j - bchar[(int) textc] > 1 : 1;
                 break;
             }
         }
-        if (!jump) {
-            return i;
-        }
-        i += (jump-1);
+        // if !jump, match found
+        if (!jump) return s;
+        s += jump;
     }
     return -1;
 }
 
 
-int bmo(char *src, size_t slen_x, char *pattern, size_t plen_x) {
-    int slen = slen_x;
-    int plen = plen_x;
+int bmo(char *text, size_t tlen, char *pattern, size_t plen) {
     // Boyer–Moore string search algorithm
-    int bchar[127];
-    for (int i = 0; i < 127; ++i) {
-        bchar[i] = plen;
-    }
-    for (int i = 0; i < plen-1; ++i) {
-        bchar[(int) pattern[i]] = plen-i-1;
-    }
+    // bad character rule
+    int bchar[256];
+    for (int i = 0; i < 127; ++i) bchar[i] = -1;
+    for (int i = 0; i < (int) plen-1; ++i) bchar[(int) pattern[i]] = i;
+    // good suffix rule
     int borders[plen+1];
     int gsuff[plen];
-    for (int i = 0; i < plen; ++i) {
-        gsuff[i] = 0;
-    }
+    for (int i = 0; i < (int) plen; ++i) gsuff[i] = 0;
     int i = plen;
     int j = plen + 1;
     borders[i] = j;
     while (i > 0) {
-        while (j <= plen && pattern[i-1] != pattern[j-1]) {
-            if ((j-1) >= 0 && gsuff[j-1] == 0) {
-                gsuff[j-1] = j-i;
-            }
+        while (j <= (int) plen && pattern[i-1] != pattern[j-1]) {
+            if ((j-1) >= 0 && gsuff[j-1] == 0) gsuff[j-1] = j-i;
             j = borders[j];
         }
         --i;
@@ -83,40 +72,40 @@ int bmo(char *src, size_t slen_x, char *pattern, size_t plen_x) {
         borders[i] = j;
     }
     int b = borders[0];
-    for (i = 0; i < plen; ++i) {
-        if (i == b) {
-            b = borders[b];
-        }
-        if (gsuff[i] == 0) {
-            gsuff[i] = b;
-        }
+    for (i = 0; i < (int) plen; ++i) {
+        if (i == b) b = borders[b];
+        if (gsuff[i] == 0) gsuff[i] = b;
     }
-    for (i = 0; i < slen-plen+1; ++i) {
+    // actual string search
+    int s = 0;
+    while (s <= (int) (tlen-plen)) {
+        // start matching from back
         int jump = 0;
         for (int j = plen-1; j >= 0; --j) {
-            char srcc = src[i+j];
-            if (srcc != pattern[j]) {
-                int ic = srcc;
-                jump = bchar[ic] > gsuff[j] ? bchar[ic] : gsuff[j];
+            char textc = text[s+j];
+            if (textc != pattern[j]) {
+                int bchar_jump = j - bchar[(int) textc] > 1 ? j - bchar[(int) textc] > 1 : 1;
+                jump = bchar_jump > gsuff[j] ? bchar_jump : gsuff[j];
                 break;
             }
         }
+        // if !jump, match found
         if (!jump) {
-            return i;
+            return s;
         }
-        i += (jump-1);
+        s += jump;
     }
     return -1;
 }
 
 
-int dmb(char *src, size_t slen, char *pattern, size_t plen) {
+int dmb(char *text, size_t tlen, char *pattern, size_t plen) {
     // Brute force string search algorithm
-    for (int i = 0; i < (int) (slen-plen+1); ++i) {
-        bool match = true;
+    for (int i = 0; i < (int) (tlen-plen+1); ++i) {
+        int match = 1;
         for (int j = 0; j < (int) plen; ++j) {
-            if (src[i+j] != pattern[j]) {
-                match = false;
+            if (text[i+j] != pattern[j]) {
+                match = 0;
                 break;
             }
         }
@@ -128,8 +117,9 @@ int dmb(char *src, size_t slen, char *pattern, size_t plen) {
 }
 
 
-int kmp(char *src, size_t slen, char *pattern, size_t plen) {
+int kmp(char *text, size_t tlen, char *pattern, size_t plen) {
     // Knuth–Morris–Pratt string search algorithm
+    // construct failure links
     int *fail = (int *) malloc(sizeof(int) * plen);
     fail[0] = 0;
     int x = 0;
@@ -144,10 +134,11 @@ int kmp(char *src, size_t slen, char *pattern, size_t plen) {
         }
         ++x;
     }
+    // actual search algorithm
     int i = 0;
     int q = 0;
-    while (i < (int) slen) {
-        if (src[i] == pattern[q]) {
+    while (i < (int) tlen) {
+        if (text[i] == pattern[q]) {
             ++i;
             ++q;
             if (q == (int) plen) {
@@ -165,33 +156,38 @@ int kmp(char *src, size_t slen, char *pattern, size_t plen) {
 }
 
 
-int kra(char *src, size_t slen, char *pattern, size_t plen) {
+int kra(char *text, size_t tlen, char *pattern, size_t plen) {
     // Karp–Rabin string search algorithm
+    // Precompute the powers of the base modulo the mod
     const int base = 256;
     const int mod = 1000000007;
     const int window_size = plen;
-    const int n = slen;
+    const int n = tlen;
     long long power = 1;
     for (int i = 1; i < window_size; i++) {
         power = (power * base) % mod;
     }
+    // Compute hash of pattern and first window
     long long pattern_hash = 0;
     long long current_hash = 0;
     for (int i = 0; i < window_size; i++) {
         pattern_hash = (base * pattern_hash + pattern[i]) % mod;
-        current_hash = (current_hash * base + src[i]) % mod;
+        current_hash = (current_hash * base + text[i]) % mod;
     }
+    // Compute the hash values of the rest of the substrings
     for (int i = 0; i <= n - window_size; i++) {
+        // If hashes match, do a full string comparison
         if (current_hash == pattern_hash) {
             int j = window_size - 1;
-            while (j >= 0 && pattern[j] == src[i + j]) --j;
+            while (j >= 0 && pattern[j] == text[i + j]) --j;
             if (j < 0) {
                 return i;
             }
         }
+        // Compute next hash
         if (i < n - window_size) {
-            current_hash = (base * (current_hash - src[i] * power)
-                           + src[i+window_size]) % mod;
+            current_hash = (base * (current_hash - text[i] * power)
+                           + text[i+window_size]) % mod;
             if (current_hash < 0) current_hash += mod;
         }
     }
@@ -204,7 +200,7 @@ const char *FN_NAMES[] = {"bmh", "bmo", "dmb", "kmp", "kra"};
 const int N_FNS = 5;
 const int N_TRIALS = 100;
 const int N_ITR = 5;
-const int TEXT_LEN = 10000;
+const int TEXT_LEN = 300000;
 const int DEFAULT_ALEN = 26;
 const int DEFAULT_PLEN = 16;
 const int ALPHABET_LEN_BOUNDS[] = {4, 64};
@@ -309,8 +305,7 @@ int run_trials(Trial *trials, FILE *csv_file) {
             free(trials);
             return -1;
         }
-        if (i) fprintf(csv_file, ",%f", time_res);
-        else fprintf(csv_file, "%f", time_res);
+        fprintf(csv_file, ",%f", time_res);
     }
     fprintf(csv_file, "\n");
     return 0;
@@ -329,6 +324,7 @@ int test_alen(FILE *csv_file) {
 
         // get and write time for each function
         printf("\tRunning trials...\n");
+        fprintf(csv_file, "%d,%d", DEFAULT_PLEN, alen);
         if (run_trials(trials, csv_file) < 0) {
             return -1;
         }
@@ -357,6 +353,7 @@ int test_plen(FILE *csv_file) {
 
         // get and write time for each function
         printf("\tRunning trials...\n");
+        fprintf(csv_file, "%d,%d", plen, DEFAULT_ALEN);
         if (run_trials(trials, csv_file) < 0) {
             return -1;
         }
@@ -377,7 +374,7 @@ int main() {
     // initialize other values
     srand(time(0));
     FILE *csv_file = fopen("times.csv", "w");
-    fwrite("plen,alen,bmh,bmo,dmb,kmp,kra\n", 1, 36, csv_file);
+    fwrite("plen,alen,bmh,bmo,dmb,kmp,kra\n", 1, 30, csv_file);
 
     // start testing
     if (test_alen(csv_file) < 0) {

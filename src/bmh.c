@@ -39,16 +39,13 @@ int strfind(char *text, size_t tlen, char *pattern, size_t plen) {
     for (int i = 0; i < (int) plen-1; ++i) bchar[(int) pattern[i]] = i;
     int s = 0;
     while (s <= (int) (tlen-plen)) {
-        // printf("Starting idx %d\n", i);
 
         // start matching from back
         int jump = 0;
         for (int j = plen-1; j >= 0; --j) {
             char textc = text[s+j];
-            // printf("\tComparing \'%c\' and \'%c\'\n", srcc, pattern[j]);
             if (textc != pattern[j]) {
                 jump = j - bchar[(int) textc] > 1 ? j - bchar[(int) textc] > 1 : 1;
-                // printf("\tJumping %d!\n", jump);
                 break;
             }
         }

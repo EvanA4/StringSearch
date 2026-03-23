@@ -32,13 +32,13 @@ ReadResult readFile(char *path) {
     return rr;
 }
 
-int strfind(char *src, size_t slen, char *pattern, size_t plen) {
+int strfind(char *text, size_t tlen, char *pattern, size_t plen) {
     // Karp–Rabin string search algorithm
     // Precompute the powers of the base modulo the mod
     const int base = 256;
     const int mod = 1000000007;
     const int window_size = plen;
-    const int n = slen;
+    const int n = tlen;
     long long power = 1;
     for (int i = 1; i < window_size; i++) {
         power = (power * base) % mod;
@@ -49,7 +49,7 @@ int strfind(char *src, size_t slen, char *pattern, size_t plen) {
     long long current_hash = 0;
     for (int i = 0; i < window_size; i++) {
         pattern_hash = (base * pattern_hash + pattern[i]) % mod;
-        current_hash = (current_hash * base + src[i]) % mod;
+        current_hash = (current_hash * base + text[i]) % mod;
     }
 
     // Compute the hash values of the rest of the substrings
@@ -57,7 +57,7 @@ int strfind(char *src, size_t slen, char *pattern, size_t plen) {
         // If hashes match, do a full string comparison
         if (current_hash == pattern_hash) {
             int j = window_size - 1;
-            while (j >= 0 && pattern[j] == src[i + j]) --j;
+            while (j >= 0 && pattern[j] == text[i + j]) --j;
             if (j < 0) {
                 return i;
             }
@@ -65,8 +65,8 @@ int strfind(char *src, size_t slen, char *pattern, size_t plen) {
         
         // Compute next hash
         if (i < n - window_size) {
-            current_hash = (base * (current_hash - src[i] * power)
-                           + src[i+window_size]) % mod;
+            current_hash = (base * (current_hash - text[i] * power)
+                           + text[i+window_size]) % mod;
             if (current_hash < 0) current_hash += mod;
         }
 

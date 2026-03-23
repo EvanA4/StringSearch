@@ -32,12 +32,12 @@ ReadResult readFile(char *path) {
     return rr;
 }
 
-int strfind(char *src, size_t slen, char *pattern, size_t plen) {
+int strfind(char *text, size_t tlen, char *pattern, size_t plen) {
     // Brute force string search algorithm
-    for (int i = 0; i < (int) (slen-plen+1); ++i) {
+    for (int i = 0; i < (int) (tlen-plen+1); ++i) {
         int match = 1;
         for (int j = 0; j < (int) plen; ++j) {
-            if (src[i+j] != pattern[j]) {
+            if (text[i+j] != pattern[j]) {
                 match = 0;
                 break;
             }

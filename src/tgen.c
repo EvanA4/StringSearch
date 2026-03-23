@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
 
     // verify and parse input
     if (argc != 5) {
-        printf("usage: ./tests <number of tests> <file length> <pattern length> <alphabet len>\n");
+        printf("usage: ./tgen <number of tests> <file length> <pattern length> <alphabet len>\n");
         return 1;
     }
     int nfiles = atoi(argv[1]);
