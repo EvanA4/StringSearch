@@ -1,23 +1,25 @@
-#include <cstdlib>
-#include <cstdio>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 
-struct ReadResult {
+typedef struct ReadResult {
     char *data;
     size_t len;
     const char *err;
-};
+} ReadResult;
 
 ReadResult readFile(char *path) {
     struct stat st;
     if (stat(path, &st) == -1) {
-        return { NULL, 0, "Failed to get file statistics."};
+        ReadResult rr = {NULL, 0, "Failed to get file statistics."};
+        return rr;
     }
     size_t fsize = st.st_size;
     FILE *fptr;
     if (!(fptr = fopen(path, "r"))) {
-        return { NULL, 0, "Failed to open file."};
+        ReadResult rr = { NULL, 0, "Failed to open file."};
+        return rr;
     }
 
     char *output = (char *) malloc(fsize+1);
@@ -26,11 +28,16 @@ ReadResult readFile(char *path) {
 
     fclose(fptr);
 
-    return { output, nread, NULL };
+    ReadResult rr = { output, nread, NULL };
+    return rr;
 }
 
 int strfind(char *src, size_t slen, char *pattern, size_t plen) {
-    // Boyer–Moore–Horspool string search algorithm
+    // Boyer–Moore string search algorithm
+
+    
+
+    // bad character rule
     int bchar[127];
     for (int i = 0; i < 127; ++i) {
         bchar[i] = plen;
@@ -39,7 +46,45 @@ int strfind(char *src, size_t slen, char *pattern, size_t plen) {
         bchar[(int) pattern[i]] = plen-i-1;
     }
 
-    for (int i = 0; i < (int) (slen-plen+1); ++i) {
+
+
+    // good suffix rule
+    int borders[plen+1];
+    int gsuff[plen];
+    for (int i = 0; i < (int) plen; ++i) {
+        gsuff[i] = 0;
+    }
+    int i = plen;
+    int j = plen + 1;
+    borders[i] = j;
+
+    while (i > 0) {
+        while (j <= (int) plen && pattern[i-1] != pattern[j-1]) {
+            if ((j-1) >= 0 && gsuff[j-1] == 0) {
+                gsuff[j-1] = j-i;
+            }
+            j = borders[j];
+        }
+        --i;
+        --j;
+        borders[i] = j;
+    }
+
+    int b = borders[0];
+
+    for (i = 0; i < (int) plen; ++i) {
+        if (i == b) {
+            b = borders[b];
+        }
+        if (gsuff[i] == 0) {
+            gsuff[i] = b;
+        }
+    }
+    
+
+
+    // actual string search
+    for (i = 0; i < (int) (slen-plen+1); ++i) {
         // printf("Starting idx %d\n", i);
 
         // start matching from back
@@ -48,7 +93,8 @@ int strfind(char *src, size_t slen, char *pattern, size_t plen) {
             char srcc = src[i+j];
             // printf("\tComparing \'%c\' and \'%c\'\n", srcc, pattern[j]);
             if (srcc != pattern[j]) {
-                jump = bchar[(int) srcc];
+                int ic = srcc;
+                jump = bchar[ic] > gsuff[j] ? bchar[ic] : gsuff[j];
                 // printf("\tJumping %d!\n", jump);
                 break;
             }

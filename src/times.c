@@ -1,14 +1,15 @@
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 #define ssfn int (*)(char *, size_t, char *, size_t)
-struct Answer {
+typedef struct Answer {
     char *pattern;
     int idx;
-};
+} Answer;
 
 
 int bmh(char *src, size_t slen, char *pattern, size_t plen) {
@@ -211,7 +212,9 @@ Answer randsub(char *text, int flen, int plen) {
             free(pattern);
             pattern = randstr(plen, false);
         }
-        return { pattern, -1 };
+
+        Answer ans = { pattern, -1 };
+        return ans;
 
     } else {
         // randomly generate idx
@@ -220,10 +223,13 @@ Answer randsub(char *text, int flen, int plen) {
         char *substr = (char *) malloc(plen+1);
         substr[plen] = '\0';
         memmove(substr, text + idx, plen);
-        return { substr, idx };
+
+        Answer ans = { substr, idx };
+        return ans;
     }
 
-    return { NULL, -1 };
+    Answer ans = { NULL, -1 };
+    return ans;
 }
 
 

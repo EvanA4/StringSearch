@@ -1,23 +1,25 @@
-#include <cstdlib>
-#include <cstdio>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 
-struct ReadResult {
+typedef struct ReadResult {
     char *data;
     size_t len;
     const char *err;
-};
+} ReadResult;
 
 ReadResult readFile(char *path) {
     struct stat st;
     if (stat(path, &st) == -1) {
-        return { NULL, 0, "Failed to get file statistics."};
+        ReadResult rr = {NULL, 0, "Failed to get file statistics."};
+        return rr;
     }
     size_t fsize = st.st_size;
     FILE *fptr;
     if (!(fptr = fopen(path, "r"))) {
-        return { NULL, 0, "Failed to open file."};
+        ReadResult rr = { NULL, 0, "Failed to open file."};
+        return rr;
     }
 
     char *output = (char *) malloc(fsize+1);
@@ -26,7 +28,8 @@ ReadResult readFile(char *path) {
 
     fclose(fptr);
 
-    return { output, nread, NULL };
+    ReadResult rr = { output, nread, NULL };
+    return rr;
 }
 
 int strfind(char *src, size_t slen, char *pattern, size_t plen) {
@@ -40,7 +43,6 @@ int strfind(char *src, size_t slen, char *pattern, size_t plen) {
     for (int i = 1; i < window_size; i++) {
         power = (power * base) % mod;
     }
-    // printf("%lli\n", power);
 
     // Compute hash of pattern and first window
     long long pattern_hash = 0;
@@ -49,12 +51,10 @@ int strfind(char *src, size_t slen, char *pattern, size_t plen) {
         pattern_hash = (base * pattern_hash + pattern[i]) % mod;
         current_hash = (current_hash * base + src[i]) % mod;
     }
-    // printf("%lli\n", pattern_hash);
 
     // Compute the hash values of the rest of the substrings
     for (int i = 0; i <= n - window_size; i++) {
         // If hashes match, do a full string comparison
-        // printf("[%d]: %llu %d\n", i, current_hash, current_hash == pattern_hash);
         if (current_hash == pattern_hash) {
             int j = window_size - 1;
             while (j >= 0 && pattern[j] == src[i + j]) --j;
@@ -77,7 +77,7 @@ int strfind(char *src, size_t slen, char *pattern, size_t plen) {
 
 int main(int argc, char **argv) {
     if (argc != 3) {
-        fprintf(stderr, "usage: ./kra <pattern> <file>\n");
+        fprintf(stderr, "usage: ./bmh <pattern> <file>\n");
         return 1;
     }
 

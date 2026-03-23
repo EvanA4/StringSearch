@@ -1,23 +1,25 @@
-bmh:
-	g++ src/bmh.cpp -o bin/bmh -Wextra -Wall
+# Compiler and flags
+CC = gcc
+CFLAGS = -Wall -Wextra
 
-bmo:
-	g++ src/bmo.cpp -o bin/bmo -Wextra -Wall
+# Program names (no paths)
+PROGS = bmh bmo kmp kra dmb tgen times
 
-kmp:
-	g++ src/kmp.cpp -o bin/kmp -Wextra -Wall
+# Derived paths
+BIN = $(PROGS:%=bin/%)
+OBJ = $(PROGS:%=obj/%.o)
 
-kra:
-	g++ src/kra.cpp -o bin/kra -Wextra -Wall
+# Default target
+all: $(BIN)
 
-dmb:
-	g++ src/dmb.cpp -o bin/dmb -Wextra -Wall
+# Link step
+bin/%: obj/%.o
+	$(CC) $< -o $@
 
-tgen:
-	g++ src/tgen.cpp -o bin/tgen -Wextra -Wall
+# Compile step
+obj/%.o: src/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
-times:
-	g++ src/times.cpp -o bin/times -Wextra -Wall
-
+# Clean
 clean:
-	rm bin/*
+	rm -f bin/* obj/*

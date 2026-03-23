@@ -1,23 +1,25 @@
-#include <cstdlib>
-#include <cstdio>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 
-struct ReadResult {
+typedef struct ReadResult {
     char *data;
     size_t len;
     const char *err;
-};
+} ReadResult;
 
 ReadResult readFile(char *path) {
     struct stat st;
     if (stat(path, &st) == -1) {
-        return { NULL, 0, "Failed to get file statistics."};
+        ReadResult rr = {NULL, 0, "Failed to get file statistics."};
+        return rr;
     }
     size_t fsize = st.st_size;
     FILE *fptr;
     if (!(fptr = fopen(path, "r"))) {
-        return { NULL, 0, "Failed to open file."};
+        ReadResult rr = { NULL, 0, "Failed to open file."};
+        return rr;
     }
 
     char *output = (char *) malloc(fsize+1);
@@ -26,16 +28,17 @@ ReadResult readFile(char *path) {
 
     fclose(fptr);
 
-    return { output, nread, NULL };
+    ReadResult rr = { output, nread, NULL };
+    return rr;
 }
 
 int strfind(char *src, size_t slen, char *pattern, size_t plen) {
     // Brute force string search algorithm
     for (int i = 0; i < (int) (slen-plen+1); ++i) {
-        bool match = true;
+        int match = 1;
         for (int j = 0; j < (int) plen; ++j) {
             if (src[i+j] != pattern[j]) {
-                match = false;
+                match = 0;
                 break;
             }
         }
@@ -48,7 +51,7 @@ int strfind(char *src, size_t slen, char *pattern, size_t plen) {
 
 int main(int argc, char **argv) {
     if (argc != 3) {
-        fprintf(stderr, "usage: ./dmb <pattern> <file>\n");
+        fprintf(stderr, "usage: ./bmh <pattern> <file>\n");
         return 1;
     }
 

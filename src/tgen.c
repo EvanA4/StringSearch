@@ -1,14 +1,15 @@
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 
-struct RandSStr {
+typedef struct RandSStr {
     char *str;
     int idx;
-};
+} RandSStr;
 
 
 char tobase64(int num) {
@@ -70,7 +71,9 @@ RandSStr randsub(char *text, int flen, int plen) {
             free(pattern);
             pattern = randstr(plen, false);
         }
-        return { pattern, -1 };
+
+        RandSStr rss = { pattern, -1 };
+        return rss;
 
     } else {
         // randomly generate idx
@@ -79,18 +82,17 @@ RandSStr randsub(char *text, int flen, int plen) {
         char *substr = (char *) malloc(plen+1);
         substr[plen] = '\0';
         memmove(substr, text + idx, plen);
-        return { substr, idx };
+
+        RandSStr rss = { substr, idx };
+        return rss;
     }
 
-    return { NULL, -1 };
+    RandSStr rss = { NULL, -1 };
+    return rss;
 }
 
 
 int main(int argc, char **argv) {
-    for (int i = 0; i < 64; ++i) {
-        printf("[%d]: \"%c\"\n", i, tobase64(i));
-    }
-
     // create t, n-length files
     // 10% chance to create fake, m-length substring
     // 90% chance to take random, m-length substring from file
@@ -98,14 +100,19 @@ int main(int argc, char **argv) {
     // output solutions to stdout
 
     // verify and parse input
-    if (argc != 4) {
-        printf("usage: ./tests <number of tests> <file length> <pattern length>\n");
+    if (argc != 5) {
+        printf("usage: ./tests <number of tests> <file length> <pattern length> <alphabet len>\n");
         return 1;
     }
     int nfiles = atoi(argv[1]);
     int nfiles_slen = strlen(argv[1]);
     int flen = atoi(argv[2]);
     int plen = atoi(argv[3]);
+    int alen = atoi(argv[4]);
+    if (alen < 2 || alen < 64) {
+        printf("Error: alphabet length must be in range [2, 64].\n");
+        return 1;
+    }
     
     // initialize other values
     srand(time(0));
