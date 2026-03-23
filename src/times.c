@@ -1,18 +1,31 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+#include <math.h>
+
 
 #define ssfn int (*)(char *, size_t, char *, size_t)
 typedef struct Answer {
     char *pattern;
     int idx;
 } Answer;
+typedef struct Trial {
+    char *text;
+    char *pattern;
+    int plen;
+    int answer;
+} Trial;
+typedef struct RandSStr {
+    char *str;
+    int idx;
+} RandSStr;
 
 
-int bmh(char *src, size_t slen, char *pattern, size_t plen) {
+int bmh(char *text, size_t tlen, char *pattern, size_t plen) {
     // Boyer–Moore–Horspool string search algorithm
     int bchar[127];
     for (int i = 0; i < 127; ++i) {
@@ -21,10 +34,10 @@ int bmh(char *src, size_t slen, char *pattern, size_t plen) {
     for (int i = 0; i < (int) plen-1; ++i) {
         bchar[(int) pattern[i]] = plen-i-1;
     }
-    for (int i = 0; i < (int) (slen-plen+1); ++i) {
+    for (int i = 0; i < (int) (tlen-plen+1); ++i) {
         int jump = 0;
         for (int j = plen-1; j >= 0; --j) {
-            char srcc = src[i+j];
+            char srcc = text[i+j];
             if (srcc != pattern[j]) {
                 jump = bchar[(int) srcc];
                 break;
@@ -186,141 +199,195 @@ int kra(char *src, size_t slen, char *pattern, size_t plen) {
 }
 
 
-char *randstr(int len, bool allow_newline) {
+int (*const SEARCH_FNS[])(char *, size_t, char *, size_t) = {bmh, bmo, dmb, kmp, kra};
+const char *FN_NAMES[] = {"bmh", "bmo", "dmb", "kmp", "kra"};
+const int N_FNS = 5;
+const int N_TRIALS = 100;
+const int N_ITR = 5;
+const int TEXT_LEN = 10000;
+const int DEFAULT_ALEN = 26;
+const int DEFAULT_PLEN = 16;
+const int ALPHABET_LEN_BOUNDS[] = {4, 64};
+const int PATTERN_LEN_BOUNDS[] = {4, 100};
+
+
+char tobase64(int num) {
+    if (num < 26) return 'A' + num;
+    else if (num < 52) return 'a' + num - 26;
+    else if (num < 62) return '0' + num - 52;
+    else if (num == 62) return '+';
+    else return '/';
+}
+
+
+char *randstr(int len, int alen) {
     char *text = (char *) malloc(sizeof(char) * len + 1);
     for (int i = 0; i < len; ++i) {
-        char toAdd = '\0';
-        while (toAdd == '\0' || toAdd == '\'' || toAdd == '\"' || toAdd == '`') {
-            toAdd = rand() % (allow_newline ? 96 : 95) + (allow_newline ? 31 : 32);
-        }
-        text[i] = toAdd == 31 ? '\n' : toAdd;
+        text[i] = tobase64(rand() % alen);
     } text[len] = '\0';
     return text;
 }
 
 
-Answer randsub(char *text, int flen, int plen) {
-    // 10% chance to create fake, m-length substring
+RandSStr randsub(char *text, int flen, int plen, int alen) {
+    // 10% chance to attempt fake, m-length substring
     // 90% chance to take random, m-length substring from file
+    RandSStr rss;
 
     bool do_fake = rand() % 10 == 1;
     if (do_fake) {
         // randomly generate substring
-        // ensure it doesn't exist in text
-        char *pattern = randstr(plen, false);
-        while (bmh(text, flen, pattern, plen) != -1) {
-            free(pattern);
-            pattern = randstr(plen, false);
-        }
-
-        Answer ans = { pattern, -1 };
-        return ans;
+        char *pattern = randstr(plen, alen);
+        rss.str = pattern;
+        rss.idx = dmb(text, flen, pattern, plen);
 
     } else {
         // randomly generate idx
         // extract substring
         int idx = rand() % (flen - plen);
-        char *substr = (char *) malloc(plen+1);
-        substr[plen] = '\0';
-        memmove(substr, text + idx, plen);
+        char *pattern = (char *) malloc(plen+1);
+        pattern[plen] = '\0';
+        memmove(pattern, text + idx, plen);
 
-        Answer ans = { substr, idx };
-        return ans;
+        rss.str = pattern;
+        rss.idx = dmb(text, flen, pattern, plen);
     }
 
-    Answer ans = { NULL, -1 };
-    return ans;
+    return rss;
 }
 
 
-int main(int argc, char **argv) {
-    // create t, n-length files
-    // 10% chance to create fake, m-length substring
-    // 90% chance to take random, m-length substring from file
-    // write .sh file to output time to complete all test cases
-    // output solutions to stdout
 
-    // verify and parse input
-    if (argc != 6) {
-        printf("usage: ./tests <number of tests> <test length> <tests per step> <pattern max length> <pattern step>\n");
-        return 1;
+double avg_time(Trial *trials, int (*fn)(char *, size_t, char *, size_t), const char *fn_name) {
+    clock_t start = clock();
+
+    for (int i = 0; i < N_ITR; ++i) {
+        for (int j = 0; j < N_TRIALS; ++j) {
+            int actual = fn(trials[j].text, TEXT_LEN, trials[j].pattern, trials[j].plen);
+            if (actual != trials[j].answer) {
+                FILE *err_file = fopen("trial.txt", "w");
+                fwrite(trials[j].text, sizeof(char), TEXT_LEN, err_file);
+                fclose(err_file);
+                fprintf(
+                    stderr, (
+                        "Error: %s returned %d instead of %d for pattern \"%s\"."
+                        " Text written to in trial.txt.\n"
+                    ),
+                    fn_name, actual, trials[j].answer, trials[j].pattern
+                );
+                return nan("");
+            }
+        }
     }
-    const int N_TESTS = atoi(argv[1]);
-    const int T_LEN = atoi(argv[2]);
-    const int P_STEP_LEN = atoi(argv[3]);
-    const int P_MAX_LEN = atoi(argv[4]);
-    const int P_STEP = atoi(argv[5]);
-    const int N_STEPS = P_MAX_LEN / P_STEP;
-    printf("Number of steps: %d\n", N_STEPS);
-    
+
+    clock_t diff = clock() - start;
+    return (double) diff / CLOCKS_PER_SEC / N_ITR;
+}
+
+
+Trial *gen_trials(int plen, int alen) {
+    Trial *trials = (Trial *) malloc(N_TRIALS * sizeof(Trial));
+    for (int i = 0; i < N_TRIALS; ++i) {
+        trials[i].text = randstr(TEXT_LEN, alen);
+        RandSStr rss = randsub(trials[i].text, TEXT_LEN, plen, alen);
+        trials[i].plen = plen;
+        trials[i].answer = rss.idx;
+        trials[i].pattern = rss.str;
+    }
+    return trials;
+}
+
+
+int run_trials(Trial *trials, FILE *csv_file) {
+    for (int i = 0; i < N_FNS; ++i) {
+        double time_res = avg_time(trials, SEARCH_FNS[i], FN_NAMES[i]);
+        if (isnan(time_res)) {
+            for (int i = 0; i < N_TRIALS; ++i) {
+                free(trials[i].pattern);
+                free(trials[i].text);
+            }
+            free(trials);
+            return -1;
+        }
+        if (i) fprintf(csv_file, ",%f", time_res);
+        else fprintf(csv_file, "%f", time_res);
+    }
+    fprintf(csv_file, "\n");
+    return 0;
+}
+
+
+int test_alen(FILE *csv_file) {
+    for (
+        int alen = ALPHABET_LEN_BOUNDS[0]; 
+        alen <= ALPHABET_LEN_BOUNDS[1]; 
+        alen += ALPHABET_LEN_BOUNDS[0]
+    ) {
+        printf("alen = %d\n", alen);
+        printf("\tGenerating trials...\n");
+        Trial *trials = gen_trials(DEFAULT_PLEN, alen);
+
+        // get and write time for each function
+        printf("\tRunning trials...\n");
+        if (run_trials(trials, csv_file) < 0) {
+            return -1;
+        }
+
+        // free trials data
+        for (int i = 0; i < N_TRIALS; ++i) {
+            free(trials[i].pattern);
+            free(trials[i].text);
+        }
+        free(trials);
+    }
+
+    return 0;
+}
+
+
+int test_plen(FILE *csv_file) {
+    for (
+        int plen = PATTERN_LEN_BOUNDS[0]; 
+        plen <= PATTERN_LEN_BOUNDS[1]; 
+        plen += PATTERN_LEN_BOUNDS[0]
+    ) {
+        printf("plen = %d\n", plen);
+        printf("\tGenerating trials...\n");
+        Trial *trials = gen_trials(plen, DEFAULT_ALEN);
+
+        // get and write time for each function
+        printf("\tRunning trials...\n");
+        if (run_trials(trials, csv_file) < 0) {
+            return -1;
+        }
+
+        // free trials data
+        for (int i = 0; i < N_TRIALS; ++i) {
+            free(trials[i].pattern);
+            free(trials[i].text);
+        }
+        free(trials);
+    }
+
+    return 0;
+}
+
+
+int main() {
     // initialize other values
     srand(time(0));
     FILE *csv_file = fopen("times.csv", "w");
-    fwrite("plen,bmh,bmo,dmb,kmp,kra\n", 1, 25, csv_file);
+    fwrite("plen,alen,bmh,bmo,dmb,kmp,kra\n", 1, 36, csv_file);
 
-    // generate tests
-    printf("Generating tests...\n");
-    char **tests = (char **) malloc(sizeof(char *) * N_TESTS);
-    Answer **answers = (Answer **) malloc(sizeof(Answer *) * (N_TESTS));
-    for (int i = 0; i < N_TESTS; ++i) {
-        tests[i] = randstr(T_LEN, true);
-        answers[i] = (Answer *) malloc(sizeof(Answer) * N_STEPS);
-        for (int j = 0; j < N_STEPS; ++j) {
-            answers[i][j] = randsub(tests[i], T_LEN, (j+1)*P_STEP);
-        }
-        printf("Generated test %d\n", i);
+    // start testing
+    if (test_alen(csv_file) < 0) {
+        fclose(csv_file);
+        return -1;
     }
-
-    // run tests
-    printf("Running tests...\n");
-    int (*fns[])(char *, size_t, char *, size_t) = {bmh, bmo, dmb, kmp, kra};
-    char fn_names[5][4] = {"bmh", "bmo", "dmb", "kmp", "kra"};
-    double *times[5];
-    for (int i = 0; i < 5; ++i) {
-        times[i] = (double *) malloc(sizeof(double) * N_STEPS);
-        for (int j = 0; j < N_STEPS; ++j) {
-            int plen = (j+1)*P_STEP;
-            clock_t start = clock();
-
-            for (int k = 0; k < P_STEP_LEN; ++k) {
-                for (int l = 0; l < N_TESTS; ++l) {
-                    int _ = fns[i](tests[l], T_LEN, answers[l][j].pattern, plen);
-                }
-            }
-
-            clock_t diff = clock() - start;
-            times[i][j] = (double) diff / CLOCKS_PER_SEC / P_STEP_LEN;
-            printf("%s at %d: %.3f\n", fn_names[i], plen, times[i][j]);
-        }
-    }
-
-    // write times to file
-    printf("Writing times to file...\n");
-    for (int j = 0; j < N_STEPS; ++j) {
-        int plen = (j+1)*P_STEP;
-        char line[50];
-        int line_len = sprintf(line, "%d,%.3f,%.3f,%.3f,%.3f,%.3f\n", plen,
-            times[0][j], times[1][j], times[2][j], times[3][j], times[4][j]
-        );
-        fwrite(line, 1, line_len, csv_file);
-    }
-
-    // free all memory
-    printf("Freeing memory...\n");
-    for (int i = 0; i < N_TESTS; ++i) {
-        free(tests[i]);
-        for (int j = 0; j < N_STEPS; ++j) {
-            free(answers[i][j].pattern);
-        }
-        free(answers[i]);
-    }
-    for (int i = 0; i < 5; ++i) {
-        free(times[i]);
+    if (test_plen(csv_file) < 0) {
+        fclose(csv_file);
+        return -1;
     }
     
-
-    free(tests);
-    free(answers);
     fclose(csv_file);
-    chmod("tests.sh", S_IRUSR | S_IWUSR | S_IXUSR);
 }

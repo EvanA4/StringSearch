@@ -32,26 +32,22 @@ ReadResult readFile(char *path) {
     return rr;
 }
 
-int strfind(char *src, size_t slen, char *pattern, size_t plen) {
+int strfind(char *text, size_t tlen, char *pattern, size_t plen) {
     // Boyer–Moore–Horspool string search algorithm
-    int bchar[127];
-    for (int i = 0; i < 127; ++i) {
-        bchar[i] = plen;
-    }
-    for (int i = 0; i < (int) plen-1; ++i) {
-        bchar[(int) pattern[i]] = plen-i-1;
-    }
-
-    for (int i = 0; i < (int) (slen-plen+1); ++i) {
+    int bchar[256];
+    for (int i = 0; i < 256; ++i) bchar[i] = -1;
+    for (int i = 0; i < (int) plen-1; ++i) bchar[(int) pattern[i]] = i;
+    int s = 0;
+    while (s <= (int) (tlen-plen)) {
         // printf("Starting idx %d\n", i);
 
         // start matching from back
         int jump = 0;
         for (int j = plen-1; j >= 0; --j) {
-            char srcc = src[i+j];
+            char textc = text[s+j];
             // printf("\tComparing \'%c\' and \'%c\'\n", srcc, pattern[j]);
-            if (srcc != pattern[j]) {
-                jump = bchar[(int) srcc];
+            if (textc != pattern[j]) {
+                jump = j - bchar[(int) textc] > 1 ? j - bchar[(int) textc] > 1 : 1;
                 // printf("\tJumping %d!\n", jump);
                 break;
             }
@@ -59,9 +55,9 @@ int strfind(char *src, size_t slen, char *pattern, size_t plen) {
 
         // if !jump, match found
         if (!jump) {
-            return i;
+            return s;
         }
-        i += (jump-1);
+        s += jump;
     }
 
     return -1;

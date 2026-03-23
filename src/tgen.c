@@ -4,6 +4,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 
 typedef struct RandSStr {
@@ -21,73 +22,57 @@ char tobase64(int num) {
 }
 
 
-char *randstr(int len, bool allow_newline) {
+char *randstr(int len, int alen) {
     char *text = (char *) malloc(sizeof(char) * len + 1);
     for (int i = 0; i < len; ++i) {
-        char toAdd = '\0';
-        while (toAdd == '\0' || toAdd == '\'' || toAdd == '\"' || toAdd == '`') {
-            toAdd = rand() % (allow_newline ? 96 : 95) + (allow_newline ? 31 : 32);
-        }
-        text[i] = toAdd == 31 ? '\n' : toAdd;
+        text[i] = tobase64(rand() % alen);
     } text[len] = '\0';
     return text;
 }
 
 
 int strfind(char *text, size_t tlen, char *pattern, size_t plen) {
-    // Boyer–Moore–Horspool string search algorithm
-    int bchar[127];
-    for (int i = 0; i < 127; ++i)
-        bchar[i] = plen;
-    for (int i = 0; i < (int) plen-1; ++i)
-        bchar[(int) pattern[i]] = plen-i-1;
+    // Brute force string search algorithm
     for (int i = 0; i < (int) (tlen-plen+1); ++i) {
-        int jump = 0;
-        for (int j = plen-1; j >= 0; --j) {
-            char srcc = text[i+j];
-            if (srcc != pattern[j]) {
-                jump = bchar[(int) srcc];
+        int match = 1;
+        for (int j = 0; j < (int) plen; ++j) {
+            if (text[i+j] != pattern[j]) {
+                match = 0;
                 break;
             }
         }
-        if (!jump)
+        if (match) {
             return i;
-        i += (jump-1);
+        }
     }
     return -1;
 }
 
 
-RandSStr randsub(char *text, int flen, int plen) {
-    // 10% chance to create fake, m-length substring
+RandSStr randsub(char *text, int flen, int plen, int alen) {
+    // 10% chance to attempt fake, m-length substring
     // 90% chance to take random, m-length substring from file
+    RandSStr rss;
 
     bool do_fake = rand() % 10 == 1;
     if (do_fake) {
         // randomly generate substring
-        // ensure it doesn't exist in text
-        char *pattern = randstr(plen, false);
-        while (strfind(text, flen, pattern, plen) != -1) {
-            free(pattern);
-            pattern = randstr(plen, false);
-        }
-
-        RandSStr rss = { pattern, -1 };
-        return rss;
+        char *pattern = randstr(plen, alen);
+        rss.str = pattern;
+        rss.idx = strfind(text, flen, pattern, plen);
 
     } else {
         // randomly generate idx
         // extract substring
         int idx = rand() % (flen - plen);
-        char *substr = (char *) malloc(plen+1);
-        substr[plen] = '\0';
-        memmove(substr, text + idx, plen);
+        char *pattern = (char *) malloc(plen+1);
+        pattern[plen] = '\0';
+        memmove(pattern, text + idx, plen);
 
-        RandSStr rss = { substr, idx };
-        return rss;
+        rss.str = pattern;
+        rss.idx = strfind(text, flen, pattern, plen);
     }
 
-    RandSStr rss = { NULL, -1 };
     return rss;
 }
 
@@ -109,21 +94,28 @@ int main(int argc, char **argv) {
     int flen = atoi(argv[2]);
     int plen = atoi(argv[3]);
     int alen = atoi(argv[4]);
-    if (alen < 2 || alen < 64) {
+    if (alen < 2 || alen > 64) {
         printf("Error: alphabet length must be in range [2, 64].\n");
         return 1;
     }
+
+    // remove all files in tests dir
+    printf("Emptying test directory...\n");
+    system("rm -rf tests/*");
+    sleep(1);
     
     // initialize other values
     srand(time(0));
     FILE *shell_script = fopen("tests.sh", "w");
+    FILE *expected_file = fopen("expected.txt", "w");
     fwrite("rm -f actual.txt\n", 1, 17, shell_script);
     
     // start writing files
+    printf("Generating tests...\n");
     for (int i = 0; i < nfiles; ++i) {
         // generate data
-        char *text = randstr(flen, true);
-        RandSStr answer = randsub(text, flen, plen);
+        char *text = randstr(flen, alen);
+        RandSStr answer = randsub(text, flen, plen, alen);
         
         // write rand file
         char *rfile_name = (char *) malloc(14 + nfiles_slen);
@@ -138,7 +130,8 @@ int main(int argc, char **argv) {
         fwrite(cmd, 1, (int) strlen(cmd), shell_script);
         
         // print data for file
-        printf("%d\n", answer.idx);
+        fprintf(expected_file, "%d\n", answer.idx);
+        printf("\"%*s\" in %*s at index %d\n", plen, answer.str, nfiles_slen+12, rfile_name, answer.idx);
         
         // free string data
         free(text);
