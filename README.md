@@ -4,9 +4,14 @@ A collection of scripts for testing different string searching algorithms.
 
 ### Basic Testing
 
-Make sure you've created a `bin` and `obj` directory first!
+Make sure you've created the `bin`, `obj`, and `tests` directories first:
 
 ```
+mkdir bin obj tests
+```
+
+```
+make
 ./bin/tgen <number of tests> <file length> <pattern length> <alphabet len>
 ```
 
@@ -21,9 +26,16 @@ This creates an `actual.txt` you can call `diff` on to ensure it matches `expect
 
 ### Graph Generation
 
-Simply generate the CSV file with this command:
+Make sure you've created the `bin` and `obj` directories first:
 
 ```
+mkdir bin obj
+```
+
+Simply generate the CSV file with these commands:
+
+```
+make
 ./bin/times
 ```
 
