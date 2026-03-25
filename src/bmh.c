@@ -45,7 +45,7 @@ int strfind(char *text, size_t tlen, char *pattern, size_t plen) {
         for (int j = plen-1; j >= 0; --j) {
             char textc = text[s+j];
             if (textc != pattern[j]) {
-                jump = j - bchar[(int) textc] > 1 ? j - bchar[(int) textc] > 1 : 1;
+                jump = j - bchar[(int) textc] > 1 ? j - bchar[(int) textc] : 1;
                 break;
             }
         }

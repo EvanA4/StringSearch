@@ -37,7 +37,7 @@ int bmh(char *text, size_t tlen, char *pattern, size_t plen) {
         for (int j = plen-1; j >= 0; --j) {
             char textc = text[s+j];
             if (textc != pattern[j]) {
-                jump = j - bchar[(int) textc] > 1 ? j - bchar[(int) textc] > 1 : 1;
+                jump = j - bchar[(int) textc] > 1 ? j - bchar[(int) textc] : 1;
                 break;
             }
         }
@@ -84,7 +84,7 @@ int bmo(char *text, size_t tlen, char *pattern, size_t plen) {
         for (int j = plen-1; j >= 0; --j) {
             char textc = text[s+j];
             if (textc != pattern[j]) {
-                int bchar_jump = j - bchar[(int) textc] > 1 ? j - bchar[(int) textc] > 1 : 1;
+                int bchar_jump = j - bchar[(int) textc] > 1 ? j - bchar[(int) textc] : 1;
                 jump = bchar_jump > gsuff[j] ? bchar_jump : gsuff[j];
                 break;
             }
