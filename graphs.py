@@ -37,8 +37,8 @@ plt.ylabel("Time (ms)")
 plens = plen_df["plen"].to_list()
 for fn_name in FN_NAMES:
     times = [num*1000 for num in plen_df[fn_name].to_list()]
-    plt.plot(plens, times, label=fn_name)
-plt.legend()
+    plt.plot(plens, times, label=fn_name if fn_name != "dmb" else "base")
+plt.legend(loc="center left", bbox_to_anchor=(1, .5))
 plt.show()
 plt.close()
 
@@ -50,7 +50,7 @@ plt.ylabel("Time (ms)")
 alens = alen_df["alen"].to_list()
 for fn_name in FN_NAMES:
     times = [num*1000 for num in alen_df[fn_name].to_list()]
-    plt.plot(alens, times, label=fn_name)
-plt.legend()
+    plt.plot(alens, times, label=fn_name if fn_name != "dmb" else "base")
+plt.legend(loc="center left", bbox_to_anchor=(1, .5))
 plt.show()
 plt.close()
